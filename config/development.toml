@@ -1,0 +1,63 @@
+[server]
+host = "127.0.0.1"
+api_gateway_port = 3000
+python_orchestrator_port = 8001
+client_port = 8080
+
+[database]
+# SQLite database file path
+sqlite_url = "sqlite:./data/app.db"
+
+# Redis configuration
+redis_url = "redis://:redispassword@localhost:6379"
+redis_db = 0
+
+# InfluxDB configuration
+influxdb_url = "http://localhost:8086"
+influxdb_token = "my-super-secret-auth-token"
+influxdb_org = "trading-org"
+influxdb_bucket = "market-data"
+
+# ChromaDB configuration
+chromadb_url = "http://localhost:8000"
+
+[external_apis]
+# Get your free API keys from:
+# Alpha Vantage: https://www.alphavantage.co/support/#api-key
+alpha_vantage_key = "KHSYCQCSBCBXR5MG"  # Replace with your actual API key
+
+# News API: https://newsapi.org/register
+news_api_key = "4588292fbc864710a8d6a378f4464252"  # Replace with your actual API key
+
+# Rate limiting
+alpha_vantage_requests_per_minute = 5
+news_api_requests_per_hour = 100
+
+[auth]
+# JWT configuration
+jwt_secret = "your-super-secret-jwt-key-for-development-only"
+jwt_expiration_hours = 24
+jwt_algorithm = "HS256"
+
+# Password hashing
+bcrypt_rounds = 12
+
+[logging]
+level = "DEBUG"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+[ai]
+# Local LLM configuration (Ollama)
+ollama_url = "http://localhost:11434"
+ollama_model = "llama2"
+
+# OpenAI fallback (optional)
+openai_api_key = "your-openai-api-key-here"
+openai_model = "gpt-3.5-turbo"
+
+[features]
+# Feature flags for development
+enable_ai_insights = true
+enable_pattern_recognition = true
+enable_sentiment_analysis = true
+enable_real_time_updates = true

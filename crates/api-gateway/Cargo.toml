@@ -1,0 +1,19 @@
+[package]
+name = "api-gateway"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+shared-types = { path = "../shared-types" }
+tokio = { workspace = true }
+axum = "0.6"
+tower = "0.4"
+tower-http = { version = "0.4", features = ["cors", "trace"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+jsonwebtoken = "8.3"
+redis = { version = "0.23", features = ["tokio-comp"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }

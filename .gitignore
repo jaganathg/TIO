@@ -1,0 +1,44 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+*.egg-info/
+
+# Database and data
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Logs
+*.log
+logs/
+
+# Configuration with secrets
+.env
+config/production.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.history/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/volumes/
