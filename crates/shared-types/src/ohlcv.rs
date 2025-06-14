@@ -5,10 +5,13 @@ use chrono::{DateTime, Utc};
 use rust_decimal::{Decimal, prelude::ToPrimitive};
 use thiserror::Error;
 
+use validator::Validate;
+use crate::validation::{validate_positive_price, validate_non_negative_volume};
 use crate::{Symbol, TimeFrame};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Validate)]
 pub struct OHLCV {
+    #[validate(nested)]
     /// The trading symbol this candlestick represents
     pub symbol: Symbol,
     
@@ -19,18 +22,23 @@ pub struct OHLCV {
     pub timestamp: DateTime<Utc>,
     
     /// Opening price at the start of the period
+    #[validate(custom(function = "validate_positive_price"))]
     pub open: Decimal,
     
     /// Highest price during the period
+    #[validate(custom(function = "validate_positive_price"))]
     pub high: Decimal,
     
     /// Lowest price during the period
+    #[validate(custom(function = "validate_positive_price"))]
     pub low: Decimal,
     
     /// Closing price at the end of the period
+    #[validate(custom(function = "validate_positive_price"))]
     pub close: Decimal,
     
     /// Total volume traded during the period
+    #[validate(custom(function = "validate_non_negative_volume"))]
     pub volume: Decimal,
     
     /// Additional metadata for future extensibility
