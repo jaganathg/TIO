@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -15,19 +15,19 @@ use crate::{Symbol, TimeFrame, OHLCV};
 pub struct ApiResponse<T> {
     /// Unique request ID for tracking
     pub request_id: Uuid,
-    
+
     /// Response status
     pub status: ApiStatus,
-    
+
     /// Response data (None if error)
     pub data: Option<T>,
-    
+
     /// Error details (None if success)
     pub error: Option<ApiError>,
-    
+
     /// Response metadata
     pub metadata: ResponseMetadata,
-    
+
     /// Server timestamp when response was generated
     pub timestamp: DateTime<Utc>,
 }
@@ -48,19 +48,19 @@ pub enum ApiStatus {
 pub struct ResponseMetadata {
     /// Processing time in milliseconds
     pub processing_time_ms: u64,
-    
+
     /// API version that handled the request
     pub api_version: String,
-    
+
     /// Source service that generated the response
     pub source: String,
-    
+
     /// Pagination info (if applicable)
     pub pagination: Option<PaginationInfo>,
-    
+
     /// Rate limiting info
     pub rate_limit: Option<RateLimitInfo>,
-    
+
     /// Additional metadata
     pub extra: HashMap<String, serde_json::Value>,
 }
@@ -89,45 +89,42 @@ pub struct RateLimitInfo {
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ApiError {
     #[error("Validation error: {message}")]
-    Validation { 
-        message: String, 
-        field: Option<String> 
+    Validation {
+        message: String,
+        field: Option<String>,
     },
-    
+
     #[error("Authentication failed: {message}")]
     Authentication { message: String },
-    
+
     #[error("Authorization failed: {message}")]
     Authorization { message: String },
-    
+
     #[error("Resource not found: {resource}")]
     NotFound { resource: String },
-    
+
     #[error("Rate limit exceeded: {message}")]
-    RateLimit { 
+    RateLimit {
         message: String,
-        retry_after: Option<DateTime<Utc>>
+        retry_after: Option<DateTime<Utc>>,
     },
-    
+
     #[error("External service error: {service} - {message}")]
-    ExternalService { 
-        service: String, 
+    ExternalService {
+        service: String,
         message: String,
-        status_code: Option<u16>
+        status_code: Option<u16>,
     },
-    
+
     #[error("Database error: {message}")]
     Database { message: String },
-    
+
     #[error("Internal server error: {message}")]
-    Internal { 
-        message: String,
-        error_id: Uuid
-    },
-    
+    Internal { message: String, error_id: Uuid },
+
     #[error("Service unavailable: {message}")]
     ServiceUnavailable { message: String },
-    
+
     #[error("Bad request: {message}")]
     BadRequest { message: String },
 }
@@ -140,22 +137,22 @@ pub enum ApiError {
 pub struct MarketDataRequest {
     /// Trading symbol to get data for
     pub symbol: Symbol,
-    
+
     /// Timeframe for the data
     pub timeframe: TimeFrame,
-    
+
     /// Start time for historical data (None for real-time)
     pub start_time: Option<DateTime<Utc>>,
-    
+
     /// End time for historical data (None for latest)
     pub end_time: Option<DateTime<Utc>>,
-    
+
     /// Maximum number of bars to return
     pub limit: Option<u32>,
-    
+
     /// Whether to include extended hours data
     pub include_extended_hours: bool,
-    
+
     /// Data adjustment type
     pub adjustment: DataAdjustment,
 }
@@ -176,19 +173,19 @@ pub enum DataAdjustment {
 pub struct MarketDataResponse {
     /// The requested symbol
     pub symbol: Symbol,
-    
+
     /// The requested timeframe
     pub timeframe: TimeFrame,
-    
+
     /// OHLCV data bars
     pub bars: Vec<OHLCV>,
-    
+
     /// Data adjustment applied
     pub adjustment: DataAdjustment,
-    
+
     /// Whether data includes extended hours
     pub includes_extended_hours: bool,
-    
+
     /// Data freshness timestamp
     pub last_updated: DateTime<Utc>,
 }
@@ -201,16 +198,16 @@ pub struct MarketDataResponse {
 pub struct SymbolSearchRequest {
     /// Search query (symbol code, company name, etc.)
     pub query: String,
-    
+
     /// Asset class filter
     pub asset_class: Option<crate::AssetClass>,
-    
+
     /// Exchange filter
     pub exchange: Option<crate::Exchange>,
-    
+
     /// Maximum results to return
     pub limit: Option<u32>,
-    
+
     /// Include inactive symbols
     pub include_inactive: bool,
 }
@@ -219,10 +216,10 @@ pub struct SymbolSearchRequest {
 pub struct SymbolSearchResponse {
     /// Search query that was executed
     pub query: String,
-    
+
     /// Matching symbols
     pub symbols: Vec<SymbolMatch>,
-    
+
     /// Total matches found (may be more than returned)
     pub total_matches: u64,
 }
@@ -231,10 +228,10 @@ pub struct SymbolSearchResponse {
 pub struct SymbolMatch {
     /// The matched symbol
     pub symbol: Symbol,
-    
+
     /// Match confidence score (0.0 to 1.0)
     pub match_score: f64,
-    
+
     /// Which fields matched the query
     pub matched_fields: Vec<String>,
 }
@@ -247,16 +244,16 @@ pub struct SymbolMatch {
 pub struct TechnicalAnalysisRequest {
     /// Symbol to analyze
     pub symbol: Symbol,
-    
+
     /// Timeframe for analysis
     pub timeframe: TimeFrame,
-    
+
     /// Technical indicators to calculate
     pub indicators: Vec<TechnicalIndicator>,
-    
+
     /// Number of periods to analyze
     pub periods: Option<u32>,
-    
+
     /// Custom parameters for indicators
     pub parameters: HashMap<String, serde_json::Value>,
 }
@@ -287,19 +284,19 @@ pub enum TechnicalIndicator {
 pub struct TechnicalAnalysisResponse {
     /// Analyzed symbol
     pub symbol: Symbol,
-    
+
     /// Analysis timeframe
     pub timeframe: TimeFrame,
-    
+
     /// Calculated indicator results
     pub indicators: HashMap<String, IndicatorResult>,
-    
+
     /// Detected chart patterns
     pub patterns: Vec<ChartPattern>,
-    
+
     /// Support and resistance levels
     pub levels: Vec<PriceLevel>,
-    
+
     /// Overall technical summary
     pub summary: TechnicalSummary,
 }
@@ -308,19 +305,19 @@ pub struct TechnicalAnalysisResponse {
 pub struct IndicatorResult {
     /// Indicator name
     pub name: String,
-    
+
     /// Current value
     pub current_value: Decimal,
-    
+
     /// Previous value (for comparison)
     pub previous_value: Option<Decimal>,
-    
+
     /// Signal interpretation
     pub signal: TechnicalSignal,
-    
+
     /// Confidence in the signal (0.0 to 1.0)
     pub confidence: f64,
-    
+
     /// Historical values
     pub values: Vec<TimestampedValue>,
 }
@@ -349,20 +346,20 @@ pub enum TechnicalSignal {
 pub struct ChartPattern {
     /// Pattern type
     pub pattern_type: String,
-    
+
     /// Pattern confidence (0.0 to 1.0)
     pub confidence: f64,
-    
+
     /// Time range of the pattern
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
-    
+
     /// Key price levels
     pub price_levels: Vec<Decimal>,
-    
+
     /// Pattern description
     pub description: String,
-    
+
     /// Predicted direction
     pub prediction: TechnicalSignal,
 }
@@ -371,16 +368,16 @@ pub struct ChartPattern {
 pub struct PriceLevel {
     /// Level type
     pub level_type: LevelType,
-    
+
     /// Price level
     pub price: Decimal,
-    
+
     /// Strength of the level (0.0 to 1.0)
     pub strength: f64,
-    
+
     /// Number of times price touched this level
     pub touch_count: u32,
-    
+
     /// Last time price touched this level
     pub last_touch: DateTime<Utc>,
 }
@@ -399,19 +396,19 @@ pub enum LevelType {
 pub struct TechnicalSummary {
     /// Overall technical bias
     pub overall_signal: TechnicalSignal,
-    
+
     /// Confidence in overall signal (0.0 to 1.0)
     pub confidence: f64,
-    
+
     /// Short-term outlook
     pub short_term: TechnicalSignal,
-    
+
     /// Medium-term outlook
     pub medium_term: TechnicalSignal,
-    
+
     /// Long-term outlook
     pub long_term: TechnicalSignal,
-    
+
     /// Key insights
     pub insights: Vec<String>,
 }
@@ -424,22 +421,22 @@ pub struct TechnicalSummary {
 pub struct AIAnalysisRequest {
     /// Symbol to analyze
     pub symbol: Symbol,
-    
+
     /// Type of AI analysis requested
     pub analysis_type: AIAnalysisType,
-    
+
     /// Context for the analysis
     pub context: AnalysisContext,
-    
+
     /// Custom prompt or specific questions
     pub custom_prompt: Option<String>,
-    
+
     /// Include technical data in analysis
     pub include_technical: bool,
-    
+
     /// Include sentiment data in analysis
     pub include_sentiment: bool,
-    
+
     /// Include news data in analysis
     pub include_news: bool,
 }
@@ -464,13 +461,13 @@ pub enum AIAnalysisType {
 pub struct AnalysisContext {
     /// Timeframe for analysis
     pub timeframe: TimeFrame,
-    
+
     /// Investment horizon
     pub horizon: InvestmentHorizon,
-    
+
     /// Risk tolerance
     pub risk_tolerance: RiskTolerance,
-    
+
     /// Additional context information
     pub additional_context: HashMap<String, String>,
 }
@@ -478,15 +475,15 @@ pub struct AnalysisContext {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InvestmentHorizon {
     #[serde(rename = "scalping")]
-    Scalping,    // Minutes to hours
+    Scalping, // Minutes to hours
     #[serde(rename = "day_trading")]
-    DayTrading,  // Intraday
+    DayTrading, // Intraday
     #[serde(rename = "swing")]
-    Swing,       // Days to weeks
+    Swing, // Days to weeks
     #[serde(rename = "position")]
-    Position,    // Weeks to months
+    Position, // Weeks to months
     #[serde(rename = "long_term")]
-    LongTerm,    // Months to years
+    LongTerm, // Months to years
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -503,25 +500,25 @@ pub enum RiskTolerance {
 pub struct AIAnalysisResponse {
     /// Analyzed symbol
     pub symbol: Symbol,
-    
+
     /// Type of analysis performed
     pub analysis_type: AIAnalysisType,
-    
+
     /// Main AI-generated insights
     pub insights: String,
-    
+
     /// Structured recommendations
     pub recommendations: Vec<Recommendation>,
-    
+
     /// Risk assessment
     pub risk_assessment: RiskAssessment,
-    
+
     /// Confidence in the analysis (0.0 to 1.0)
     pub confidence: f64,
-    
+
     /// Data sources used
     pub data_sources: Vec<String>,
-    
+
     /// Analysis timestamp
     pub analysis_time: DateTime<Utc>,
 }
@@ -530,19 +527,19 @@ pub struct AIAnalysisResponse {
 pub struct Recommendation {
     /// Recommendation type
     pub recommendation_type: RecommendationType,
-    
+
     /// Action to take
     pub action: String,
-    
+
     /// Reasoning behind the recommendation
     pub reasoning: String,
-    
+
     /// Confidence level (0.0 to 1.0)
     pub confidence: f64,
-    
+
     /// Time horizon for this recommendation
     pub time_horizon: InvestmentHorizon,
-    
+
     /// Target price levels (if applicable)
     pub target_levels: Vec<TargetLevel>,
 }
@@ -565,13 +562,13 @@ pub enum RecommendationType {
 pub struct TargetLevel {
     /// Level type
     pub level_type: TargetLevelType,
-    
+
     /// Price level
     pub price: Decimal,
-    
+
     /// Probability of reaching this level
     pub probability: f64,
-    
+
     /// Timeframe to reach this level
     pub timeframe: Option<String>,
 }
@@ -594,13 +591,13 @@ pub enum TargetLevelType {
 pub struct RiskAssessment {
     /// Overall risk level
     pub risk_level: RiskLevel,
-    
+
     /// Risk factors identified
     pub risk_factors: Vec<RiskFactor>,
-    
+
     /// Volatility assessment
     pub volatility: VolatilityLevel,
-    
+
     /// Liquidity assessment
     pub liquidity: LiquidityLevel,
 }
@@ -623,10 +620,10 @@ pub enum RiskLevel {
 pub struct RiskFactor {
     /// Factor name
     pub factor: String,
-    
+
     /// Impact level
     pub impact: RiskLevel,
-    
+
     /// Description
     pub description: String,
 }
@@ -667,13 +664,13 @@ pub enum LiquidityLevel {
 pub struct WebSocketMessage {
     /// Message ID for tracking
     pub message_id: Uuid,
-    
+
     /// Message type
     pub message_type: WebSocketMessageType,
-    
+
     /// Message payload
     pub payload: serde_json::Value,
-    
+
     /// Timestamp
     pub timestamp: DateTime<Utc>,
 }
@@ -687,7 +684,7 @@ pub enum WebSocketMessageType {
     Unsubscribe,
     #[serde(rename = "request")]
     Request,
-    
+
     // Server to Client
     #[serde(rename = "market_data")]
     MarketData,
@@ -707,13 +704,13 @@ pub enum WebSocketMessageType {
 pub struct SubscriptionRequest {
     /// Subscription type
     pub subscription_type: SubscriptionType,
-    
+
     /// Symbol to subscribe to
     pub symbol: Symbol,
-    
+
     /// Timeframe (for market data)
     pub timeframe: Option<TimeFrame>,
-    
+
     /// Additional parameters
     pub parameters: HashMap<String, serde_json::Value>,
 }
@@ -746,7 +743,7 @@ impl<T> ApiResponse<T> {
             timestamp: Utc::now(),
         }
     }
-    
+
     /// Create an error response
     pub fn error(request_id: Uuid, error: ApiError, metadata: ResponseMetadata) -> Self {
         Self {
@@ -758,12 +755,12 @@ impl<T> ApiResponse<T> {
             timestamp: Utc::now(),
         }
     }
-    
+
     /// Check if response is successful
     pub fn is_success(&self) -> bool {
         matches!(self.status, ApiStatus::Success)
     }
-    
+
     /// Check if response is an error
     pub fn is_error(&self) -> bool {
         matches!(self.status, ApiStatus::Error)
@@ -797,9 +794,9 @@ mod tests {
         let request_id = Uuid::new_v4();
         let data = "test data";
         let metadata = ResponseMetadata::default();
-        
+
         let response = ApiResponse::success(request_id, data, metadata);
-        
+
         assert!(response.is_success());
         assert!(!response.is_error());
         assert_eq!(response.data, Some("test data"));
@@ -809,11 +806,13 @@ mod tests {
     #[test]
     fn test_api_response_error() {
         let request_id = Uuid::new_v4();
-        let error = ApiError::NotFound { resource: "symbol".to_string() };
+        let error = ApiError::NotFound {
+            resource: "symbol".to_string(),
+        };
         let metadata = ResponseMetadata::default();
-        
+
         let response: ApiResponse<String> = ApiResponse::error(request_id, error.clone(), metadata);
-        
+
         assert!(!response.is_success());
         assert!(response.is_error());
         assert!(response.data.is_none());
@@ -832,7 +831,7 @@ mod tests {
             include_extended_hours: false,
             adjustment: DataAdjustment::All,
         };
-        
+
         assert_eq!(request.timeframe, TimeFrame::OneHour);
         assert_eq!(request.limit, Some(100));
         assert!(!request.include_extended_hours);
@@ -848,7 +847,7 @@ mod tests {
             periods: Some(20),
             parameters: HashMap::new(),
         };
-        
+
         assert_eq!(request.indicators.len(), 2);
         assert!(request.indicators.contains(&TechnicalIndicator::RSI));
         assert!(request.indicators.contains(&TechnicalIndicator::MACD));
@@ -862,7 +861,7 @@ mod tests {
             payload: serde_json::json!({"test": "data"}),
             timestamp: Utc::now(),
         };
-        
+
         assert_eq!(message.message_type, WebSocketMessageType::MarketData);
     }
 
@@ -878,10 +877,10 @@ mod tests {
             include_extended_hours: false,
             adjustment: DataAdjustment::All,
         };
-        
+
         let json = serde_json::to_string(&request).unwrap();
         let deserialized: MarketDataRequest = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(request, deserialized);
     }
 }

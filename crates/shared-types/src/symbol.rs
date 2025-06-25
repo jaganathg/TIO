@@ -36,7 +36,7 @@ pub enum Exchange {
     NYSE,
     #[serde(rename = "AMEX")]
     AMEX,
-    
+
     // Crypto Exchanges
     #[serde(rename = "BINANCE")]
     Binance,
@@ -46,11 +46,11 @@ pub enum Exchange {
     Kraken,
     #[serde(rename = "BITFINEX")]
     Bitfinex,
-    
+
     // Forex
     #[serde(rename = "FOREX")]
     Forex,
-    
+
     // International Stock Exchanges
     #[serde(rename = "LSE")]
     LSE, // London Stock Exchange
@@ -58,13 +58,13 @@ pub enum Exchange {
     TSE, // Tokyo Stock Exchange
     #[serde(rename = "XETRA")]
     XETRA, // German exchange
-    
+
     // Commodities
     #[serde(rename = "COMEX")]
     COMEX,
     #[serde(rename = "NYMEX")]
     NYMEX,
-    
+
     // Custom/Other
     #[serde(rename = "OTHER")]
     Other(String),
@@ -89,45 +89,45 @@ pub struct Symbol {
     /// Primary symbol code (e.g., "AAPL", "BTC-USD", "EUR/USD")
     #[validate(length(min = 1, max = 20))]
     pub code: String,
-    
+
     /// Human-readable display name
     #[validate(length(min = 1, max = 100))]
     pub display_name: String,
-    
+
     /// Asset classification
     pub asset_class: AssetClass,
-    
+
     /// Exchange where this symbol is traded
     pub exchange: Exchange,
-    
+
     /// Base currency (e.g., "USD", "EUR")
     #[validate(length(equal = 3))]
     pub currency: String,
-    
+
     /// Quote currency for forex pairs (e.g., "USD" in "EUR/USD")
     pub quote_currency: Option<String>,
-    
+
     /// Minimum price tick size (smallest price movement)
     pub tick_size: rust_decimal::Decimal,
-    
+
     /// Contract size (1 for stocks, 100000 for standard forex lots)
     pub contract_size: rust_decimal::Decimal,
-    
+
     /// Trading timezone (e.g., "America/New_York", "Europe/London")
     pub timezone: String,
-    
+
     /// Current market status
     pub market_status: MarketStatus,
-    
+
     /// Whether this symbol is actively tradeable
     pub is_active: bool,
-    
+
     /// Sector for stocks (e.g., "Technology", "Healthcare")
     pub sector: Option<String>,
-    
+
     /// Industry for stocks (e.g., "Software", "Pharmaceuticals")
     pub industry: Option<String>,
-    
+
     /// Additional flexible metadata
     pub metadata: HashMap<String, String>,
 }
@@ -175,13 +175,14 @@ impl Symbol {
             industry: None,
             metadata: HashMap::new(),
         };
-        
-        symbol.validate()
+
+        symbol
+            .validate()
             .map_err(|e| SymbolError::ValidationError(e.to_string()))?;
-        
+
         Ok(symbol)
     }
-    
+
     /// Create a stock symbol
     pub fn stock(code: &str, name: &str, exchange: Exchange) -> Result<Self, SymbolError> {
         Self::new(
@@ -192,12 +193,12 @@ impl Symbol {
             "USD".to_string(),
         )
     }
-    
+
     /// Create a forex pair
     pub fn forex(base: &str, quote: &str) -> Result<Self, SymbolError> {
         let code = format!("{}/{}", base.to_uppercase(), quote.to_uppercase());
         let display_name = format!("{} vs {}", base.to_uppercase(), quote.to_uppercase());
-        
+
         let mut symbol = Self::new(
             code,
             display_name,
@@ -205,18 +206,18 @@ impl Symbol {
             Exchange::Forex,
             base.to_uppercase(),
         )?;
-        
+
         symbol.quote_currency = Some(quote.to_uppercase());
         symbol.contract_size = rust_decimal::Decimal::new(100000, 0); // Standard lot
-        
+
         Ok(symbol)
     }
-    
+
     /// Create a crypto pair
     pub fn crypto(base: &str, quote: &str, exchange: Exchange) -> Result<Self, SymbolError> {
         let code = format!("{}-{}", base.to_uppercase(), quote.to_uppercase());
         let display_name = format!("{} / {}", base.to_uppercase(), quote.to_uppercase());
-        
+
         let mut symbol = Self::new(
             code,
             display_name,
@@ -224,48 +225,55 @@ impl Symbol {
             exchange,
             quote.to_uppercase(),
         )?;
-        
+
         symbol.quote_currency = Some(quote.to_uppercase());
-        
+
         Ok(symbol)
     }
-    
+
     /// Check if symbol is valid for the given exchange
     pub fn is_valid_for_exchange(&self) -> bool {
         match (&self.asset_class, &self.exchange) {
             (AssetClass::Stock, Exchange::NASDAQ | Exchange::NYSE | Exchange::AMEX) => true,
-            (AssetClass::Crypto, Exchange::Binance | Exchange::Coinbase | Exchange::Kraken | Exchange::Bitfinex) => true,
+            (
+                AssetClass::Crypto,
+                Exchange::Binance | Exchange::Coinbase | Exchange::Kraken | Exchange::Bitfinex,
+            ) => true,
             (AssetClass::Forex, Exchange::Forex) => true,
             (AssetClass::Commodity, Exchange::COMEX | Exchange::NYMEX) => true,
             _ => false,
         }
     }
-    
+
     /// Get the full symbol identifier (code@exchange)
     pub fn full_identifier(&self) -> String {
         format!("{}@{}", self.code, self.exchange)
     }
-    
+
     /// Update market status
     pub fn set_market_status(&mut self, status: MarketStatus) {
         self.market_status = status;
     }
-    
+
     /// Add metadata
     pub fn add_metadata(&mut self, key: &str, value: &str) {
         self.metadata.insert(key.to_string(), value.to_string());
     }
-    
+
     /// Get metadata
     pub fn get_metadata(&self, key: &str) -> Option<&String> {
         self.metadata.get(key)
     }
-    
+
     /// Check if symbol is currently tradeable
     pub fn is_tradeable(&self) -> bool {
-        self.is_active && matches!(self.market_status, MarketStatus::Open | MarketStatus::PreMarket | MarketStatus::AfterMarket)
+        self.is_active
+            && matches!(
+                self.market_status,
+                MarketStatus::Open | MarketStatus::PreMarket | MarketStatus::AfterMarket
+            )
     }
-    
+
     /// Get display string for UI
     pub fn display(&self) -> String {
         format!("{} ({})", self.display_name, self.code)
@@ -311,7 +319,7 @@ impl fmt::Display for Exchange {
 
 impl FromStr for AssetClass {
     type Err = SymbolError;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "stock" => Ok(AssetClass::Stock),
@@ -330,7 +338,7 @@ impl FromStr for AssetClass {
 
 impl FromStr for Exchange {
     type Err = SymbolError;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
             "NASDAQ" => Ok(Exchange::NASDAQ),
@@ -359,7 +367,7 @@ mod tests {
     #[test]
     fn test_create_stock_symbol() {
         let symbol = Symbol::stock("AAPL", "Apple Inc.", Exchange::NASDAQ).unwrap();
-        
+
         assert_eq!(symbol.code, "AAPL");
         assert_eq!(symbol.display_name, "Apple Inc.");
         assert_eq!(symbol.asset_class, AssetClass::Stock);
@@ -371,7 +379,7 @@ mod tests {
     #[test]
     fn test_create_forex_symbol() {
         let symbol = Symbol::forex("EUR", "USD").unwrap();
-        
+
         assert_eq!(symbol.code, "EUR/USD");
         assert_eq!(symbol.display_name, "EUR vs USD");
         assert_eq!(symbol.asset_class, AssetClass::Forex);
@@ -384,7 +392,7 @@ mod tests {
     #[test]
     fn test_create_crypto_symbol() {
         let symbol = Symbol::crypto("BTC", "USD", Exchange::Coinbase).unwrap();
-        
+
         assert_eq!(symbol.code, "BTC-USD");
         assert_eq!(symbol.display_name, "BTC / USD");
         assert_eq!(symbol.asset_class, AssetClass::Crypto);
@@ -398,7 +406,7 @@ mod tests {
         // Valid symbol
         let valid = Symbol::stock("AAPL", "Apple Inc.", Exchange::NASDAQ);
         assert!(valid.is_ok());
-        
+
         // Invalid currency (not 3 chars)
         let invalid = Symbol::new(
             "AAPL".to_string(),
@@ -414,29 +422,30 @@ mod tests {
     fn test_exchange_validation() {
         let stock_symbol = Symbol::stock("AAPL", "Apple Inc.", Exchange::NASDAQ).unwrap();
         assert!(stock_symbol.is_valid_for_exchange());
-        
+
         let invalid_symbol = Symbol::new(
             "AAPL".to_string(),
             "Apple Inc.".to_string(),
             AssetClass::Stock,
             Exchange::Binance, // Wrong exchange for stock
             "USD".to_string(),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(!invalid_symbol.is_valid_for_exchange());
     }
 
     #[test]
     fn test_market_status_and_tradeability() {
         let mut symbol = Symbol::stock("AAPL", "Apple Inc.", Exchange::NASDAQ).unwrap();
-        
+
         // Initially closed and active
         symbol.set_market_status(MarketStatus::Closed);
         assert!(!symbol.is_tradeable());
-        
+
         // Open market should be tradeable
         symbol.set_market_status(MarketStatus::Open);
         assert!(symbol.is_tradeable());
-        
+
         // Inactive symbol should not be tradeable even when market is open
         symbol.is_active = false;
         assert!(!symbol.is_tradeable());
@@ -445,12 +454,18 @@ mod tests {
     #[test]
     fn test_metadata() {
         let mut symbol = Symbol::stock("AAPL", "Apple Inc.", Exchange::NASDAQ).unwrap();
-        
+
         symbol.add_metadata("sector", "Technology");
         symbol.add_metadata("market_cap", "3000000000000");
-        
-        assert_eq!(symbol.get_metadata("sector"), Some(&"Technology".to_string()));
-        assert_eq!(symbol.get_metadata("market_cap"), Some(&"3000000000000".to_string()));
+
+        assert_eq!(
+            symbol.get_metadata("sector"),
+            Some(&"Technology".to_string())
+        );
+        assert_eq!(
+            symbol.get_metadata("market_cap"),
+            Some(&"3000000000000".to_string())
+        );
         assert_eq!(symbol.get_metadata("nonexistent"), None);
     }
 
@@ -478,7 +493,7 @@ mod tests {
     fn test_exchange_from_str() {
         assert_eq!(Exchange::from_str("nasdaq").unwrap(), Exchange::NASDAQ);
         assert_eq!(Exchange::from_str("BINANCE").unwrap(), Exchange::Binance);
-        
+
         // Custom exchange
         if let Exchange::Other(name) = Exchange::from_str("CUSTOM_EXCHANGE").unwrap() {
             assert_eq!(name, "CUSTOM_EXCHANGE");
@@ -490,10 +505,10 @@ mod tests {
     #[test]
     fn test_serde_serialization() {
         let symbol = Symbol::stock("AAPL", "Apple Inc.", Exchange::NASDAQ).unwrap();
-        
+
         let json = serde_json::to_string(&symbol).unwrap();
         let deserialized: Symbol = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(symbol, deserialized);
     }
 }

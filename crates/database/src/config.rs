@@ -1,4 +1,78 @@
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error("Configuration file error: {0}")]
+    File(#[from] config::ConfigError),
+
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(String),
+
+    #[error("Invalid configuration value: {0}")]
+    InvalidValue(String),
+
+    #[error("Missing required field: {0}")]
+    MissingField(String),
+}
+
+pub struct DatabaseConfigBuilder {
+    sqlite: Option<SqliteConfig>,
+    redis: Option<RedisConfig>,
+    influxdb: Option<InfluxDbConfig>,
+    chromadb: Option<ChromaDbConfig>,
+}
+
+impl DatabaseConfigBuilder {
+    pub fn new() -> Self {
+        Self {
+            sqlite: None,
+            redis: None,
+            influxdb: None,
+            chromadb: None,
+        }
+    }
+
+    pub fn with_sqlite(mut self, sqlite: SqliteConfig) -> Self {
+        self.sqlite = Some(sqlite);
+        self
+    }
+
+    pub fn with_redis(mut self, redis: RedisConfig) -> Self {
+        self.redis = Some(redis);
+        self
+    }
+
+    pub fn with_influxdb(mut self, influxdb: InfluxDbConfig) -> Self {
+        self.influxdb = Some(influxdb);
+        self
+    }
+
+    pub fn with_chromadb(mut self, chromadb: ChromaDbConfig) -> Self {
+        self.chromadb = Some(chromadb);
+        self
+    }
+
+    pub fn build(self) -> Result<DatabaseConfig, ConfigError> {
+        let config = DatabaseConfig {
+            sqlite: self
+                .sqlite
+                .ok_or(ConfigError::MissingField("sqlite".into()))?,
+            redis: self
+                .redis
+                .ok_or(ConfigError::MissingField("redis".into()))?,
+            influxdb: self
+                .influxdb
+                .ok_or(ConfigError::MissingField("influxdb".into()))?,
+            chromadb: self
+                .chromadb
+                .ok_or(ConfigError::MissingField("chromadb".into()))?,
+        };
+
+        config.validate()?;
+        Ok(config)
+    }
+}
 
 /// Database configuration for all supported databases
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +194,15 @@ fn default_max_retries() -> u32 {
 }
 
 impl DatabaseConfig {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        self.sqlite.validate()?;
+        self.redis.validate()?;
+        self.influxdb.validate()?;
+        self.chromadb.validate()?;
+        Ok(())
+    }
+
     /// Load configuration from a TOML file
     pub fn from_file(path: &str) -> Result<Self, config::ConfigError> {
         let settings = config::Config::builder()
@@ -136,6 +219,31 @@ impl DatabaseConfig {
             .build()?;
 
         settings.try_deserialize()
+    }
+
+    pub fn load_with_validation(path: &str) -> Result<Self, ConfigError> {
+        let config = Self::from_file(path).map_err(ConfigError::File)?;
+        config.validate()?;
+        Ok(config)
+    }
+
+    pub fn from_env_with_profile(profile: &str) -> Result<Self, ConfigError> {
+        let prefix = format!("DATABASE_{}", profile.to_uppercase());
+        let settings = config::Config::builder()
+            .add_source(config::Environment::with_prefix(&prefix))
+            .build()
+            .map_err(ConfigError::File)?;
+
+        let config: Self = settings.try_deserialize().map_err(ConfigError::File)?;
+
+        config.validate()?;
+        Ok(config)
+    }
+
+    pub fn from_env_with_validation() -> Result<Self, ConfigError> {
+        let config = Self::from_env().map_err(ConfigError::File)?;
+        config.validate()?;
+        Ok(config)
     }
 
     /// Create a default development configuration
@@ -168,6 +276,142 @@ impl DatabaseConfig {
                 max_retries: 3,
             },
         }
+    }
+
+    pub fn production() -> Self {
+        DatabaseConfig {
+            sqlite: SqliteConfig {
+                url: "sqlite:./data/production.db".to_string(),
+                max_connections: 50,
+                connection_timeout_secs: 60,
+                enable_wal: true,
+                busy_timeout_ms: 60_000,
+            },
+            redis: RedisConfig {
+                url: "redis://:redispassword@localhost:6379".to_string(),
+                database: 0,
+                max_connections: 100,
+                connection_timeout_secs: 60,
+                idle_timeout_secs: 600,
+            },
+            influxdb: InfluxDbConfig {
+                url: "http://localhost:8086".to_string(),
+                token: "my-super-secret-auth-token".to_string(),
+                org: "trading-org".to_string(),
+                bucket: "market-data".to_string(),
+                timeout_secs: 30,
+            },
+            chromadb: ChromaDbConfig {
+                url: "http://localhost:8000".to_string(),
+                timeout_secs: 30,
+                max_retries: 3,
+            },
+        }
+    }
+
+    pub fn testing() -> Self {
+        DatabaseConfig {
+            sqlite: SqliteConfig {
+                url: "sqlite::memory:".to_string(),
+                max_connections: 1,
+                connection_timeout_secs: 5,
+                enable_wal: false,
+                busy_timeout_ms: 1000,
+            },
+            redis: RedisConfig {
+                url: "redis://localhost:6379".to_string(),
+                database: 15,
+                max_connections: 5,
+                connection_timeout_secs: 5,
+                idle_timeout_secs: 30,
+            },
+            influxdb: InfluxDbConfig {
+                url: "http://localhost:8086".to_string(),
+                token: "test-token".to_string(),
+                org: "test-org".to_string(),
+                bucket: "test-data".to_string(),
+                timeout_secs: 5,
+            },
+            chromadb: ChromaDbConfig {
+                url: "http://localhost:8000".to_string(),
+                timeout_secs: 5,
+                max_retries: 1,
+            },
+        }
+    }
+}
+
+impl SqliteConfig {
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        if self.url.is_empty() {
+            return Err(ConfigError::InvalidValue(
+                "SQLite URL cannot be empty".into(),
+            ));
+        }
+        if !self.url.starts_with("sqlite:") {
+            return Err(ConfigError::InvalidUrl(
+                "SQLite URL must start with 'sqlite:'".into(),
+            ));
+        }
+        if self.max_connections == 0 {
+            return Err(ConfigError::InvalidValue(
+                "SQLite max_connections must be > 0".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl RedisConfig {
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        if self.url.is_empty() {
+            return Err(ConfigError::InvalidValue(
+                "Redis URL cannot be empty".into(),
+            ));
+        }
+        if !self.url.starts_with("redis:") {
+            return Err(ConfigError::InvalidUrl(
+                "Redis URL must start with 'redis:'".into(),
+            ));
+        }
+        if self.max_connections == 0 {
+            return Err(ConfigError::InvalidValue(
+                "Redis max_connections must be > 0".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl InfluxDbConfig {
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        if self.url.is_empty() {
+            return Err(ConfigError::InvalidValue(
+                "InfluxDB URL cannot be empty".into(),
+            ));
+        }
+        if !self.url.starts_with("http://") && !self.url.starts_with("https://") {
+            return Err(ConfigError::InvalidUrl(
+                "InfluxDB URL must start with 'http://' or 'https://'".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ChromaDbConfig {
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        if self.url.is_empty() {
+            return Err(ConfigError::InvalidValue(
+                "ChromaDB URL cannot be empty".into(),
+            ));
+        }
+        if !self.url.starts_with("http://") && !self.url.starts_with("https://") {
+            return Err(ConfigError::InvalidUrl(
+                "ChromaDB URL must start with 'http://' or 'https://'".into(),
+            ));
+        }
+        Ok(())
     }
 }
 
