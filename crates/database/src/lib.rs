@@ -7,3 +7,4 @@ pub mod pools;
 
 pub use config::*;
 pub use errors::*;
+pub use pools::*;
