@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use chrono::{DateTime, Utc};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -14,34 +14,34 @@ use uuid::Uuid;
 pub struct TradingError {
     /// Unique error ID for tracking and correlation
     pub error_id: Uuid,
-    
+
     /// Error code for programmatic handling
     pub error_code: ErrorCode,
-    
+
     /// The specific error category and details
     pub error_type: ErrorType,
-    
+
     /// User-friendly error message
     pub user_message: String,
-    
+
     /// Developer-oriented error message with technical details
     pub developer_message: String,
-    
+
     /// Additional context and metadata
     pub context: ErrorContext,
-    
+
     /// Chain of underlying errors that led to this error
     pub error_chain: Vec<ChainedError>,
-    
+
     /// When this error occurred
     pub timestamp: DateTime<Utc>,
-    
+
     /// Severity level of the error
     pub severity: ErrorSeverity,
-    
+
     /// Whether this error is recoverable
     pub recoverable: bool,
-    
+
     /// Suggested retry strategy
     pub retry_strategy: Option<RetryStrategy>,
 }
@@ -66,7 +66,7 @@ pub enum ErrorCode {
     DataStale,
     #[serde(rename = "MD_008")]
     RateLimitExceeded,
-    
+
     // Trading Errors (2000-2999)
     #[serde(rename = "TR_001")]
     InsufficientFunds,
@@ -84,7 +84,7 @@ pub enum ErrorCode {
     RiskLimitExceeded,
     #[serde(rename = "TR_008")]
     TradingHalted,
-    
+
     // Analysis Errors (3000-3999)
     #[serde(rename = "AN_001")]
     InsufficientDataForAnalysis,
@@ -100,7 +100,7 @@ pub enum ErrorCode {
     ModelLoadingFailed,
     #[serde(rename = "AN_007")]
     AnalysisTimeout,
-    
+
     // Database Errors (4000-4999)
     #[serde(rename = "DB_001")]
     ConnectionFailed,
@@ -116,7 +116,7 @@ pub enum ErrorCode {
     DatabaseUnavailable,
     #[serde(rename = "DB_007")]
     DataCorruption,
-    
+
     // Network Errors (5000-5999)
     #[serde(rename = "NW_001")]
     ConnectionTimeout,
@@ -132,7 +132,7 @@ pub enum ErrorCode {
     WebSocketConnectionFailed,
     #[serde(rename = "NW_007")]
     NetworkUnreachable,
-    
+
     // Authentication/Authorization Errors (6000-6999)
     #[serde(rename = "AU_001")]
     InvalidCredentials,
@@ -148,7 +148,7 @@ pub enum ErrorCode {
     SessionExpired,
     #[serde(rename = "AU_007")]
     TwoFactorRequired,
-    
+
     // Validation Errors (7000-7999)
     #[serde(rename = "VL_001")]
     RequiredFieldMissing,
@@ -164,7 +164,7 @@ pub enum ErrorCode {
     ValueOutOfRange,
     #[serde(rename = "VL_007")]
     InvalidEnumValue,
-    
+
     // System Errors (8000-8999)
     #[serde(rename = "SY_001")]
     ConfigurationError,
@@ -180,7 +180,7 @@ pub enum ErrorCode {
     MaintenanceMode,
     #[serde(rename = "SY_007")]
     VersionMismatch,
-    
+
     // External Service Errors (9000-9999)
     #[serde(rename = "EX_001")]
     ThirdPartyServiceDown,
@@ -198,63 +198,63 @@ pub enum ErrorCode {
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ErrorType {
     #[error("Market data error: {details}")]
-    MarketData { 
+    MarketData {
         details: MarketDataError,
         symbol: Option<String>,
         timeframe: Option<String>,
     },
-    
+
     #[error("Trading error: {details}")]
-    Trading { 
+    Trading {
         details: Box<TradingErrorDetails>,
         order_id: Option<String>,
         portfolio_id: Option<String>,
     },
-    
+
     #[error("Analysis error: {details}")]
-    Analysis { 
+    Analysis {
         details: AnalysisError,
         analysis_type: Option<String>,
         parameters: HashMap<String, String>,
     },
-    
+
     #[error("Database error: {details}")]
-    Database { 
+    Database {
         details: DatabaseError,
         operation: Option<String>,
         table: Option<String>,
     },
-    
+
     #[error("Network error: {details}")]
-    Network { 
+    Network {
         details: NetworkError,
         url: Option<String>,
         status_code: Option<u16>,
     },
-    
+
     #[error("Authentication error: {details}")]
-    Authentication { 
+    Authentication {
         details: AuthenticationError,
         user_id: Option<String>,
         resource: Option<String>,
     },
-    
+
     #[error("Validation error: {details}")]
-    Validation { 
+    Validation {
         details: ValidationError,
         field: Option<String>,
         value: Option<String>,
     },
-    
+
     #[error("System error: {details}")]
-    System { 
+    System {
         details: SystemError,
         component: Option<String>,
         configuration: Option<String>,
     },
-    
+
     #[error("External service error: {details}")]
-    ExternalService { 
+    ExternalService {
         details: ExternalServiceError,
         service_name: String,
         endpoint: Option<String>,
@@ -269,52 +269,63 @@ pub enum ErrorType {
 pub enum MarketDataError {
     #[error("Symbol '{symbol}' not found")]
     SymbolNotFound { symbol: String },
-    
+
     #[error("No data available for the requested time range")]
     NoDataAvailable,
-    
+
     #[error("Invalid time range: start {start} is after end {end}")]
     InvalidTimeRange { start: String, end: String },
-    
+
     #[error("Market data provider '{provider}' is unavailable")]
     DataProviderUnavailable { provider: String },
-    
+
     #[error("Invalid symbol format: '{symbol}'")]
     InvalidSymbolFormat { symbol: String },
-    
+
     #[error("Market is closed for symbol '{symbol}'")]
     MarketClosed { symbol: String },
-    
+
     #[error("Data is stale, last updated: {last_updated}")]
     DataStale { last_updated: String },
-    
+
     #[error("Rate limit exceeded for provider '{provider}', retry after: {retry_after}")]
-    RateLimitExceeded { provider: String, retry_after: String },
+    RateLimitExceeded {
+        provider: String,
+        retry_after: String,
+    },
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TradingErrorDetails {
     #[error("Insufficient funds: required {required}, available {available}")]
     InsufficientFunds { required: String, available: String },
-    
+
     #[error("Invalid order size: {size}, minimum: {min}, maximum: {max}")]
-    InvalidOrderSize { size: String, min: String, max: String },
-    
+    InvalidOrderSize {
+        size: String,
+        min: String,
+        max: String,
+    },
+
     #[error("Invalid order type: '{order_type}' not supported for symbol '{symbol}'")]
     InvalidOrderType { order_type: String, symbol: String },
-    
+
     #[error("Order rejected: {reason}")]
     OrderRejected { reason: String },
-    
+
     #[error("Position '{position_id}' not found")]
     PositionNotFound { position_id: String },
-    
+
     #[error("Portfolio '{portfolio_id}' not found")]
     PortfolioNotFound { portfolio_id: String },
-    
+
     #[error("Risk limit exceeded: {risk_type}, current: {current}, limit: {limit}")]
-    RiskLimitExceeded { risk_type: String, current: String, limit: String },
-    
+    RiskLimitExceeded {
+        risk_type: String,
+        current: String,
+        limit: String,
+    },
+
     #[error("Trading halted for symbol '{symbol}': {reason}")]
     TradingHalted { symbol: String, reason: String },
 }
@@ -323,22 +334,25 @@ pub enum TradingErrorDetails {
 pub enum AnalysisError {
     #[error("Insufficient data for analysis: need {required}, have {available}")]
     InsufficientDataForAnalysis { required: u32, available: u32 },
-    
+
     #[error("Indicator calculation failed: {indicator}, reason: {reason}")]
     IndicatorCalculationFailed { indicator: String, reason: String },
-    
+
     #[error("Pattern recognition failed: {pattern_type}, reason: {reason}")]
-    PatternRecognitionFailed { pattern_type: String, reason: String },
-    
+    PatternRecognitionFailed {
+        pattern_type: String,
+        reason: String,
+    },
+
     #[error("AI service '{service}' is unavailable")]
     AIServiceUnavailable { service: String },
-    
+
     #[error("Invalid analysis parameters: {parameter} = {value}")]
     InvalidAnalysisParameters { parameter: String, value: String },
-    
+
     #[error("Model loading failed: {model_name}, error: {error}")]
     ModelLoadingFailed { model_name: String, error: String },
-    
+
     #[error("Analysis timeout after {timeout_seconds} seconds")]
     AnalysisTimeout { timeout_seconds: u64 },
 }
@@ -347,22 +361,22 @@ pub enum AnalysisError {
 pub enum DatabaseError {
     #[error("Database connection failed: {database}, error: {error}")]
     ConnectionFailed { database: String, error: String },
-    
+
     #[error("Query failed: {query}, error: {error}")]
     QueryFailed { query: String, error: String },
-    
+
     #[error("Transaction failed: {operation}, error: {error}")]
     TransactionFailed { operation: String, error: String },
-    
+
     #[error("Constraint violation: {constraint}, value: {value}")]
     ConstraintViolation { constraint: String, value: String },
-    
+
     #[error("Migration failed: {migration}, error: {error}")]
     MigrationFailed { migration: String, error: String },
-    
+
     #[error("Database '{database}' is unavailable")]
     DatabaseUnavailable { database: String },
-    
+
     #[error("Data corruption detected in table '{table}', row: {row_id}")]
     DataCorruption { table: String, row_id: String },
 }
@@ -371,22 +385,22 @@ pub enum DatabaseError {
 pub enum NetworkError {
     #[error("Connection timeout after {timeout_seconds} seconds")]
     ConnectionTimeout { timeout_seconds: u64 },
-    
+
     #[error("DNS resolution failed for host '{host}'")]
     DNSResolutionFailed { host: String },
-    
+
     #[error("TLS handshake failed with '{host}': {error}")]
     TLSHandshakeFailed { host: String, error: String },
-    
+
     #[error("HTTP client error {status_code}: {message}")]
     HTTPClientError { status_code: u16, message: String },
-    
+
     #[error("HTTP server error {status_code}: {message}")]
     HTTPServerError { status_code: u16, message: String },
-    
+
     #[error("WebSocket connection failed: {reason}")]
     WebSocketConnectionFailed { reason: String },
-    
+
     #[error("Network unreachable: {destination}")]
     NetworkUnreachable { destination: String },
 }
@@ -395,22 +409,22 @@ pub enum NetworkError {
 pub enum AuthenticationError {
     #[error("Invalid credentials for user '{user_id}'")]
     InvalidCredentials { user_id: String },
-    
+
     #[error("Token expired at {expiry_time}")]
     TokenExpired { expiry_time: String },
-    
+
     #[error("Token is invalid: {reason}")]
     TokenInvalid { reason: String },
-    
+
     #[error("Insufficient permissions for action '{action}' on resource '{resource}'")]
     InsufficientPermissions { action: String, resource: String },
-    
+
     #[error("Account '{account_id}' is locked: {reason}")]
     AccountLocked { account_id: String, reason: String },
-    
+
     #[error("Session expired at {expiry_time}")]
     SessionExpired { expiry_time: String },
-    
+
     #[error("Two-factor authentication required")]
     TwoFactorRequired,
 }
@@ -419,64 +433,101 @@ pub enum AuthenticationError {
 pub enum ValidationError {
     #[error("Required field '{field}' is missing")]
     RequiredFieldMissing { field: String },
-    
+
     #[error("Invalid value for field '{field}': {value}")]
     InvalidFieldValue { field: String, value: String },
-    
+
     #[error("Field '{field}' is too long: {length}, max: {max_length}")]
-    FieldTooLong { field: String, length: usize, max_length: usize },
-    
+    FieldTooLong {
+        field: String,
+        length: usize,
+        max_length: usize,
+    },
+
     #[error("Field '{field}' is too short: {length}, min: {min_length}")]
-    FieldTooShort { field: String, length: usize, min_length: usize },
-    
+    FieldTooShort {
+        field: String,
+        length: usize,
+        min_length: usize,
+    },
+
     #[error("Invalid format for field '{field}': expected {expected_format}")]
-    InvalidFormat { field: String, expected_format: String },
-    
+    InvalidFormat {
+        field: String,
+        expected_format: String,
+    },
+
     #[error("Value {value} is out of range for field '{field}': min {min}, max {max}")]
-    ValueOutOfRange { field: String, value: String, min: String, max: String },
-    
+    ValueOutOfRange {
+        field: String,
+        value: String,
+        min: String,
+        max: String,
+    },
+
     #[error("Invalid enum value '{value}' for field '{field}', valid values: {valid_values:?}")]
-    InvalidEnumValue { field: String, value: String, valid_values: Vec<String> },
+    InvalidEnumValue {
+        field: String,
+        value: String,
+        valid_values: Vec<String>,
+    },
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SystemError {
     #[error("Configuration error: {config_key} = {config_value}")]
-    ConfigurationError { config_key: String, config_value: String },
-    
+    ConfigurationError {
+        config_key: String,
+        config_value: String,
+    },
+
     #[error("Resource exhausted: {resource_type}, used: {used}, limit: {limit}")]
-    ResourceExhausted { resource_type: String, used: String, limit: String },
-    
+    ResourceExhausted {
+        resource_type: String,
+        used: String,
+        limit: String,
+    },
+
     #[error("Service '{service}' is unavailable")]
     ServiceUnavailable { service: String },
-    
+
     #[error("Internal error: {component}, error: {error}")]
     InternalError { component: String, error: String },
-    
+
     #[error("Feature '{feature}' is not implemented")]
     FeatureNotImplemented { feature: String },
-    
+
     #[error("System is in maintenance mode until {end_time}")]
     MaintenanceMode { end_time: String },
-    
+
     #[error("Version mismatch: client {client_version}, server {server_version}")]
-    VersionMismatch { client_version: String, server_version: String },
+    VersionMismatch {
+        client_version: String,
+        server_version: String,
+    },
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExternalServiceError {
     #[error("Third-party service '{service}' is down")]
     ThirdPartyServiceDown { service: String },
-    
+
     #[error("API key is invalid for service '{service}'")]
     APIKeyInvalid { service: String },
-    
+
     #[error("Quota exceeded for service '{service}': {usage}/{quota}")]
-    QuotaExceeded { service: String, usage: String, quota: String },
-    
+    QuotaExceeded {
+        service: String,
+        usage: String,
+        quota: String,
+    },
+
     #[error("Service '{service}' is degraded: {performance_impact}")]
-    ServiceDegraded { service: String, performance_impact: String },
-    
+    ServiceDegraded {
+        service: String,
+        performance_impact: String,
+    },
+
     #[error("Unexpected response from service '{service}': {response}")]
     UnexpectedResponse { service: String, response: String },
 }
@@ -489,28 +540,28 @@ pub enum ExternalServiceError {
 pub struct ErrorContext {
     /// Correlation ID for tracing across services
     pub correlation_id: Option<Uuid>,
-    
+
     /// User ID associated with the error
     pub user_id: Option<String>,
-    
+
     /// Request ID that caused the error
     pub request_id: Option<Uuid>,
-    
+
     /// Service name where the error occurred
     pub service_name: String,
-    
+
     /// Component within the service
     pub component: Option<String>,
-    
+
     /// Function or method where error occurred
     pub function: Option<String>,
-    
+
     /// File and line number (for debugging)
     pub location: Option<String>,
-    
+
     /// Environment where error occurred
     pub environment: String,
-    
+
     /// Additional metadata
     pub metadata: HashMap<String, String>,
 }
@@ -519,13 +570,13 @@ pub struct ErrorContext {
 pub struct ChainedError {
     /// Error message
     pub message: String,
-    
+
     /// Error type/category
     pub error_type: String,
-    
+
     /// When this error occurred in the chain
     pub timestamp: DateTime<Utc>,
-    
+
     /// Source location of this error
     pub source: Option<String>,
 }
@@ -552,16 +603,16 @@ pub enum ErrorSeverity {
 pub struct RetryStrategy {
     /// Whether retry is recommended
     pub should_retry: bool,
-    
+
     /// Maximum number of retry attempts
     pub max_attempts: u32,
-    
+
     /// Delay between retries (in seconds)
     pub delay_seconds: u64,
-    
+
     /// Backoff strategy
     pub backoff_strategy: BackoffStrategy,
-    
+
     /// Conditions under which to retry
     pub retry_conditions: Vec<String>,
 }
@@ -599,12 +650,12 @@ impl TradingError {
             retry_strategy: None,
         }
     }
-    
+
     /// Builder pattern for creating errors
     pub fn builder(error_code: ErrorCode, error_type: ErrorType) -> TradingErrorBuilder {
         TradingErrorBuilder::new(error_code, error_type)
     }
-    
+
     /// Add an error to the chain
     pub fn chain_error(mut self, message: String, error_type: String) -> Self {
         self.error_chain.push(ChainedError {
@@ -615,22 +666,24 @@ impl TradingError {
         });
         self
     }
-    
+
     /// Check if error is recoverable
     pub fn is_recoverable(&self) -> bool {
         self.recoverable
     }
-    
+
     /// Check if retry is recommended
     pub fn should_retry(&self) -> bool {
-        self.retry_strategy.as_ref().map_or(false, |s| s.should_retry)
+        self.retry_strategy
+            .as_ref()
+            .map_or(false, |s| s.should_retry)
     }
-    
+
     /// Get user-friendly error message
     pub fn user_message(&self) -> &str {
         &self.user_message
     }
-    
+
     /// Get technical error message for developers
     pub fn developer_message(&self) -> &str {
         &self.developer_message
@@ -653,57 +706,57 @@ impl TradingErrorBuilder {
             error: TradingError::new(error_code, error_type),
         }
     }
-    
+
     pub fn user_message(mut self, message: impl Into<String>) -> Self {
         self.error.user_message = message.into();
         self
     }
-    
+
     pub fn developer_message(mut self, message: impl Into<String>) -> Self {
         self.error.developer_message = message.into();
         self
     }
-    
+
     pub fn severity(mut self, severity: ErrorSeverity) -> Self {
         self.error.severity = severity;
         self
     }
-    
+
     pub fn recoverable(mut self, recoverable: bool) -> Self {
         self.error.recoverable = recoverable;
         self
     }
-    
+
     pub fn correlation_id(mut self, correlation_id: Uuid) -> Self {
         self.error.context.correlation_id = Some(correlation_id);
         self
     }
-    
+
     pub fn user_id(mut self, user_id: impl Into<String>) -> Self {
         self.error.context.user_id = Some(user_id.into());
         self
     }
-    
+
     pub fn service_name(mut self, service_name: impl Into<String>) -> Self {
         self.error.context.service_name = service_name.into();
         self
     }
-    
+
     pub fn component(mut self, component: impl Into<String>) -> Self {
         self.error.context.component = Some(component.into());
         self
     }
-    
+
     pub fn retry_strategy(mut self, strategy: RetryStrategy) -> Self {
         self.error.retry_strategy = Some(strategy);
         self
     }
-    
+
     pub fn metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.error.context.metadata.insert(key.into(), value.into());
         self
     }
-    
+
     pub fn build(self) -> TradingError {
         self.error
     }
@@ -783,7 +836,7 @@ mod tests {
                 timeframe: None,
             },
         );
-        
+
         assert_eq!(error.error_code, ErrorCode::SymbolNotFound);
         assert!(!error.is_recoverable());
         assert!(!error.should_retry());
@@ -812,7 +865,7 @@ mod tests {
         .component("database-pool")
         .metadata("timeout_seconds", "30")
         .build();
-        
+
         assert_eq!(error.severity, ErrorSeverity::Critical);
         assert!(error.is_recoverable());
         assert_eq!(error.context.correlation_id, Some(correlation_id));
@@ -832,17 +885,14 @@ mod tests {
                 configuration: None,
             },
         );
-        
+
         error = error.chain_error(
             "Database connection lost".to_string(),
             "DatabaseError".to_string(),
         );
-        
-        error = error.chain_error(
-            "Network timeout".to_string(),
-            "NetworkError".to_string(),
-        );
-        
+
+        error = error.chain_error("Network timeout".to_string(), "NetworkError".to_string());
+
         assert_eq!(error.error_chain.len(), 2);
         assert_eq!(error.error_chain[0].message, "Database connection lost");
         assert_eq!(error.error_chain[1].message, "Network timeout");
@@ -857,7 +907,7 @@ mod tests {
             backoff_strategy: BackoffStrategy::Exponential,
             retry_conditions: vec!["timeout".to_string(), "rate_limit".to_string()],
         };
-        
+
         let error = TradingError::builder(
             ErrorCode::RateLimitExceeded,
             ErrorType::MarketData {
@@ -871,10 +921,13 @@ mod tests {
         )
         .retry_strategy(retry_strategy)
         .build();
-        
+
         assert!(error.should_retry());
         assert_eq!(error.retry_strategy.as_ref().unwrap().max_attempts, 3);
-        assert_eq!(error.retry_strategy.as_ref().unwrap().backoff_strategy, BackoffStrategy::Exponential);
+        assert_eq!(
+            error.retry_strategy.as_ref().unwrap().backoff_strategy,
+            BackoffStrategy::Exponential
+        );
     }
 
     #[test]
@@ -888,7 +941,7 @@ mod tests {
             ErrorSeverity::Critical,
             ErrorSeverity::Fatal,
         ];
-        
+
         for severity in severities {
             let error = TradingError::builder(
                 ErrorCode::InternalError,
@@ -903,7 +956,7 @@ mod tests {
             )
             .severity(severity.clone())
             .build();
-            
+
             assert_eq!(error.severity, severity);
         }
     }
@@ -912,10 +965,10 @@ mod tests {
     fn test_error_code_display() {
         let error_code = ErrorCode::SymbolNotFound;
         assert_eq!(error_code.to_string(), "MD_001");
-        
+
         let error_code = ErrorCode::InsufficientFunds;
         assert_eq!(error_code.to_string(), "TR_001");
-        
+
         let error_code = ErrorCode::DatabaseUnavailable;
         assert_eq!(error_code.to_string(), "DB_006");
     }
@@ -936,10 +989,10 @@ mod tests {
         .developer_message("JWT token verification failed")
         .severity(ErrorSeverity::Warning)
         .build();
-        
+
         let json = serde_json::to_string(&error).unwrap();
         let deserialized: TradingError = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(error.error_code, deserialized.error_code);
         assert_eq!(error.user_message, deserialized.user_message);
         assert_eq!(error.severity, deserialized.severity);
@@ -955,7 +1008,7 @@ mod tests {
             symbol: Some("TEST".to_string()),
             timeframe: None,
         };
-        
+
         let _trading_error = ErrorType::Trading {
             details: Box::new(TradingErrorDetails::InsufficientFunds {
                 required: "1000".to_string(),
@@ -964,7 +1017,7 @@ mod tests {
             order_id: Some("order123".to_string()),
             portfolio_id: None,
         };
-        
+
         let _analysis_error = ErrorType::Analysis {
             details: AnalysisError::InsufficientDataForAnalysis {
                 required: 100,
@@ -973,7 +1026,7 @@ mod tests {
             analysis_type: Some("RSI".to_string()),
             parameters: HashMap::new(),
         };
-        
+
         let _database_error = ErrorType::Database {
             details: DatabaseError::ConnectionFailed {
                 database: "main".to_string(),
@@ -982,7 +1035,7 @@ mod tests {
             operation: Some("SELECT".to_string()),
             table: Some("users".to_string()),
         };
-        
+
         let _network_error = ErrorType::Network {
             details: NetworkError::ConnectionTimeout {
                 timeout_seconds: 30,
@@ -990,7 +1043,7 @@ mod tests {
             url: Some("https://api.example.com".to_string()),
             status_code: Some(408),
         };
-        
+
         let _auth_error = ErrorType::Authentication {
             details: AuthenticationError::TokenExpired {
                 expiry_time: "2024-01-01T00:00:00Z".to_string(),
@@ -998,7 +1051,7 @@ mod tests {
             user_id: Some("user123".to_string()),
             resource: Some("portfolio".to_string()),
         };
-        
+
         let _validation_error = ErrorType::Validation {
             details: ValidationError::RequiredFieldMissing {
                 field: "symbol".to_string(),
@@ -1006,7 +1059,7 @@ mod tests {
             field: Some("symbol".to_string()),
             value: None,
         };
-        
+
         let _system_error = ErrorType::System {
             details: SystemError::ServiceUnavailable {
                 service: "analysis-engine".to_string(),
@@ -1014,7 +1067,7 @@ mod tests {
             component: Some("analysis-engine".to_string()),
             configuration: None,
         };
-        
+
         let _external_error = ErrorType::ExternalService {
             details: ExternalServiceError::ThirdPartyServiceDown {
                 service: "alpha_vantage".to_string(),
@@ -1022,7 +1075,7 @@ mod tests {
             service_name: "alpha_vantage".to_string(),
             endpoint: Some("/query".to_string()),
         };
-        
+
         // If we reach here, all error types can be created successfully
         assert!(true);
     }
@@ -1030,9 +1083,13 @@ mod tests {
     #[test]
     fn test_error_context_metadata() {
         let mut context = ErrorContext::default();
-        context.metadata.insert("key1".to_string(), "value1".to_string());
-        context.metadata.insert("key2".to_string(), "value2".to_string());
-        
+        context
+            .metadata
+            .insert("key1".to_string(), "value1".to_string());
+        context
+            .metadata
+            .insert("key2".to_string(), "value2".to_string());
+
         assert_eq!(context.metadata.get("key1"), Some(&"value1".to_string()));
         assert_eq!(context.metadata.get("key2"), Some(&"value2".to_string()));
         assert_eq!(context.metadata.get("nonexistent"), None);

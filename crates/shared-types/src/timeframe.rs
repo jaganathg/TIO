@@ -30,7 +30,7 @@ pub enum TimeFrame {
     OneDay,
     OneWeek,
     OneMonth,
-    
+
     // Custom timeframe
     Custom { value: u32, unit: TimeUnit },
 }
@@ -112,7 +112,7 @@ impl FromStr for TimeFrame {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim();
-        
+
         // Handle standard timeframes first
         match s {
             "1m" => return Ok(TimeFrame::OneMinute),
@@ -133,15 +133,15 @@ impl FromStr for TimeFrame {
         }
 
         let (number_part, unit_part) = if s.ends_with('m') && s != "1m" {
-            (&s[..s.len()-1], "m")
+            (&s[..s.len() - 1], "m")
         } else if s.ends_with('h') {
-            (&s[..s.len()-1], "h")
+            (&s[..s.len() - 1], "h")
         } else if s.ends_with('d') {
-            (&s[..s.len()-1], "d")
+            (&s[..s.len() - 1], "d")
         } else if s.ends_with('w') {
-            (&s[..s.len()-1], "w")
+            (&s[..s.len() - 1], "w")
         } else if s.ends_with('M') {
-            (&s[..s.len()-1], "M")
+            (&s[..s.len() - 1], "M")
         } else {
             return Err(TimeFrameError::InvalidFormat(s.to_string()));
         };
@@ -149,7 +149,7 @@ impl FromStr for TimeFrame {
         let value: u32 = number_part
             .parse()
             .map_err(|_| TimeFrameError::InvalidValue(number_part.to_string()))?;
-        
+
         if value == 0 {
             return Err(TimeFrameError::ZeroOrNegativeValue);
         }
@@ -242,7 +242,7 @@ mod tests {
     fn test_custom_timeframes() {
         let tf = TimeFrame::custom(2, TimeUnit::Hours).unwrap();
         assert_eq!(tf.to_seconds(), 7200);
-        
+
         let tf = TimeFrame::custom(3, TimeUnit::Days).unwrap();
         assert_eq!(tf.to_seconds(), 259200);
     }
@@ -261,27 +261,51 @@ mod tests {
         assert_eq!(TimeFrame::from_str("1m").unwrap(), TimeFrame::OneMinute);
         assert_eq!(TimeFrame::from_str("1M").unwrap(), TimeFrame::OneMonth);
         // Should NOT be equal!
-        assert_ne!(TimeFrame::from_str("1m").unwrap(), TimeFrame::from_str("1M").unwrap());
+        assert_ne!(
+            TimeFrame::from_str("1m").unwrap(),
+            TimeFrame::from_str("1M").unwrap()
+        );
     }
 
     #[test]
     fn test_from_str_custom() {
         let tf = TimeFrame::from_str("2h").unwrap();
-        assert_eq!(tf, TimeFrame::Custom { value: 2, unit: TimeUnit::Hours });
-        
+        assert_eq!(
+            tf,
+            TimeFrame::Custom {
+                value: 2,
+                unit: TimeUnit::Hours
+            }
+        );
+
         let tf = TimeFrame::from_str("3d").unwrap();
-        assert_eq!(tf, TimeFrame::Custom { value: 3, unit: TimeUnit::Days });
-        
+        assert_eq!(
+            tf,
+            TimeFrame::Custom {
+                value: 3,
+                unit: TimeUnit::Days
+            }
+        );
+
         let tf = TimeFrame::from_str("10m").unwrap();
-        assert_eq!(tf, TimeFrame::Custom { value: 10, unit: TimeUnit::Minutes });
+        assert_eq!(
+            tf,
+            TimeFrame::Custom {
+                value: 10,
+                unit: TimeUnit::Minutes
+            }
+        );
     }
 
     #[test]
     fn test_to_string() {
         assert_eq!(TimeFrame::OneMinute.to_string(), "1m");
         assert_eq!(TimeFrame::OneHour.to_string(), "1h");
-        
-        let tf = TimeFrame::Custom { value: 2, unit: TimeUnit::Hours };
+
+        let tf = TimeFrame::Custom {
+            value: 2,
+            unit: TimeUnit::Hours,
+        };
         assert_eq!(tf.to_string(), "2h");
     }
 
@@ -289,8 +313,11 @@ mod tests {
     fn test_ordering() {
         assert!(TimeFrame::OneMinute < TimeFrame::FiveMinutes);
         assert!(TimeFrame::OneHour > TimeFrame::ThirtyMinutes);
-        
-        let custom_2h = TimeFrame::Custom { value: 2, unit: TimeUnit::Hours };
+
+        let custom_2h = TimeFrame::Custom {
+            value: 2,
+            unit: TimeUnit::Hours,
+        };
         assert!(TimeFrame::OneHour < custom_2h);
     }
 
@@ -299,7 +326,7 @@ mod tests {
         let tf = TimeFrame::OneHour;
         let json = serde_json::to_string(&tf).unwrap();
         assert_eq!(json, "\"1h\"");
-        
+
         let deserialized: TimeFrame = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, TimeFrame::OneHour);
     }
@@ -316,8 +343,11 @@ mod tests {
     #[test]
     fn test_is_standard() {
         assert!(TimeFrame::OneHour.is_standard());
-        
-        let custom = TimeFrame::Custom { value: 2, unit: TimeUnit::Hours };
+
+        let custom = TimeFrame::Custom {
+            value: 2,
+            unit: TimeUnit::Hours,
+        };
         assert!(!custom.is_standard());
     }
 

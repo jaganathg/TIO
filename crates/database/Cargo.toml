@@ -1,0 +1,35 @@
+[package]
+name = "database"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Local crates
+shared-types = { path = "../shared-types" }
+
+# Workspace dependencies  
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
+reqwest = { workspace = true }
+config = { workspace = true }
+toml = { workspace = true }
+
+# Database-specific dependencies (owned by this crate)
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "chrono",
+    "uuid",
+    "migrate",
+] }
+redis = { version = "0.32.2", features = ["tokio-comp", "connection-manager"] }
+bb8 = "0.9.0"
+bb8-redis = "0.24.0"
+influxdb = "0.7.2"

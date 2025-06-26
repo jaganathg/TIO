@@ -1,8 +1,9 @@
 [workspace]
 members = [
     "crates/shared-types",
-    "crates/api-gateway", 
-    "crates/client"
+    "crates/api-gateway",
+    "crates/client",
+    "crates/database",
 ]
 resolver = "2"
 
@@ -11,10 +12,19 @@ tokio = { version = "1.35", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0.12"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 validator = { version = "0.20.0", features = ["derive"] }
-rust_decimal = { version = "1.32", features = ["serde-float"] }
+rust_decimal = { version = "1.37.2", features = ["serde-float"] }
+
+# Common async/utility dependencies
+futures = "0.3"
+reqwest = { version = "0.12.20", features = ["json"] }
+
+# Configuration dependencies
+config = "0.15.11"
+toml = "0.8"
+
