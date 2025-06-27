@@ -1,6 +1,7 @@
 use crate::config::DatabaseConfig;
-use crate::errors::{DatabaseError, DatabaseResult, 
-    DatabaseType, ErrorContext, ErrorSeverity, QueryType};
+use crate::errors::{
+    DatabaseError, DatabaseResult, DatabaseType, ErrorContext, ErrorSeverity, QueryType,
+};
 use sqlx::{sqlite::SqlitePoolOptions, Sqlite, SqlitePool as SqlxSqlitePool};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -57,11 +58,10 @@ impl SqlitePoolConfig {
                 message: "min_connections cannot exceed max_connections".into(),
                 database: DatabaseType::SQLite,
                 context: ErrorContext::new("config_validation"),
-            })
+            });
         }
-        
-        Ok(())
 
+        Ok(())
     }
 }
 
@@ -135,7 +135,7 @@ pub struct PoolMetrics {
     pub active_connections: AtomicU32,
     pub connection_errors: AtomicU64,
     pub query_count: AtomicU64,
-    pub total_query_time_ms:  AtomicU64,
+    pub total_query_time_ms: AtomicU64,
 }
 
 impl PoolMetrics {
@@ -150,20 +150,21 @@ impl PoolMetrics {
     pub fn decrement_active(&self) {
         self.active_connections.fetch_sub(1, Ordering::Relaxed);
     }
-    
+
     pub fn increment_errors(&self) {
         self.connection_errors.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_query(&self, duration_ms: u64) {
         self.query_count.fetch_add(1, Ordering::Relaxed);
-        self.total_query_time_ms.fetch_add(duration_ms, Ordering::Relaxed);
+        self.total_query_time_ms
+            .fetch_add(duration_ms, Ordering::Relaxed);
     }
 
     pub fn average_query_time_ms(&self) -> f64 {
         let count = self.query_count.load(Ordering::Relaxed);
         if count == 0 {
-           0.0 
+            0.0
         } else {
             (self.total_query_time_ms.load(Ordering::Relaxed) as f64) / (count as f64)
         }
@@ -191,17 +192,14 @@ impl SqlitePool {
         if let Some(max_lifetime) = config.max_lifetime {
             options = options.max_lifetime(max_lifetime);
         }
-        let pool = options
-            .connect(&config.url)
-            .await
-            .map_err(|e| {
-                DatabaseError::connection_failed(
-                    DatabaseType::SQLite,
-                    format!("Failed to create connection pool: {}", e),
-                )
-                .with_context("url", config.url.clone())
-                .with_context("max_connections", config.max_connections.to_string())
-            })?;
+        let pool = options.connect(&config.url).await.map_err(|e| {
+            DatabaseError::connection_failed(
+                DatabaseType::SQLite,
+                format!("Failed to create connection pool: {}", e),
+            )
+            .with_context("url", config.url.clone())
+            .with_context("max_connections", config.max_connections.to_string())
+        })?;
 
         let sqlite_pool = Self {
             pool,
@@ -223,27 +221,29 @@ impl SqlitePool {
         let mut conn = self.acquire_connection().await?;
 
         if self.config.enable_wal {
-            sqlx::query("PRAGMA journal_mode = WAL").execute(&mut *conn)
-            .await
-            .map_err(|e| {
-                DatabaseError::query_failed(
-                    DatabaseType::SQLite,
-                    QueryType::Select,
-                    format!("Failed to enable WAL mode: {}", e),
-                 )
-            })?;
+            sqlx::query("PRAGMA journal_mode = WAL")
+                .execute(&mut *conn)
+                .await
+                .map_err(|e| {
+                    DatabaseError::query_failed(
+                        DatabaseType::SQLite,
+                        QueryType::Select,
+                        format!("Failed to enable WAL mode: {}", e),
+                    )
+                })?;
         }
 
         if self.config.enable_foreign_keys {
-            sqlx::query("PRAGMA foreign_keys = ON").execute(&mut *conn)
-            .await
-            .map_err(|e| {
-                DatabaseError::query_failed(
-                    DatabaseType::SQLite,
-                    QueryType::Select,
-                    format!("Failed to enable foreign keys: {}", e),
-                )
-            })?;
+            sqlx::query("PRAGMA foreign_keys = ON")
+                .execute(&mut *conn)
+                .await
+                .map_err(|e| {
+                    DatabaseError::query_failed(
+                        DatabaseType::SQLite,
+                        QueryType::Select,
+                        format!("Failed to enable foreign keys: {}", e),
+                    )
+                })?;
         }
         Ok(())
     }
@@ -264,10 +264,13 @@ impl SqlitePool {
                     self.metrics.decrement_active();
                     self.metrics.increment_errors();
                     Err(DatabaseError::connection_failed(
-                        DatabaseType::SQLite, 
+                        DatabaseType::SQLite,
                         format!("Failed to acquire connection: {}", e),
                     )
-                    .with_context("acquire_timeout", format!("{:?}", self.config.acquire_timeout))
+                    .with_context(
+                        "acquire_timeout",
+                        format!("{:?}", self.config.acquire_timeout),
+                    )
                     .with_context("elapsed", format!("{:?}", start.elapsed())))
                 }
             },
@@ -275,26 +278,24 @@ impl SqlitePool {
                 self.metrics.decrement_active();
                 self.metrics.increment_errors();
                 Err(DatabaseError::timeout(
-                    DatabaseType::SQLite, 
-                    "connection_acquire", 
+                    DatabaseType::SQLite,
+                    "connection_acquire",
                     self.config.acquire_timeout,
                 ))
             }
         }
     }
 
-    pub async fn execute(&self, sql: &str) -> DatabaseResult<sqlx::sqlite::SqliteQueryResult>
-    {
+    pub async fn execute(&self, sql: &str) -> DatabaseResult<sqlx::sqlite::SqliteQueryResult> {
         let start = Instant::now();
         let mut conn = self.acquire_connection().await?;
 
-        let result = sqlx::query(sql)
-            .execute(&mut *conn)
-            .await;
+        let result = sqlx::query(sql).execute(&mut *conn).await;
         let duration = start.elapsed();
-        
+
         self.metrics.decrement_active();
-        self.metrics.record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
+        self.metrics
+            .record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
 
         result.map_err(|e| {
             DatabaseError::query_failed(
@@ -313,14 +314,13 @@ impl SqlitePool {
         let start = Instant::now();
         let mut conn = self.acquire_connection().await?;
 
-        let result = sqlx::query_as::<_, R>(sql)
-            .fetch_all(&mut *conn)
-            .await;
+        let result = sqlx::query_as::<_, R>(sql).fetch_all(&mut *conn).await;
         let duration = start.elapsed();
 
         self.metrics.decrement_active();
-        self.metrics.record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
-        
+        self.metrics
+            .record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
+
         result.map_err(|e| {
             DatabaseError::query_failed(
                 DatabaseType::SQLite,
@@ -333,19 +333,18 @@ impl SqlitePool {
     }
 
     pub async fn fetch_one<R>(&self, sql: &str) -> DatabaseResult<R>
-    where 
+    where
         R: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
     {
         let start = Instant::now();
         let mut conn = self.acquire_connection().await?;
 
-        let result = sqlx::query_as::<_, R>(sql)
-            .fetch_one(&mut *conn)
-            .await;
+        let result = sqlx::query_as::<_, R>(sql).fetch_one(&mut *conn).await;
         let duration = start.elapsed();
 
         self.metrics.decrement_active();
-        self.metrics.record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
+        self.metrics
+            .record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
 
         result.map_err(|e| {
             DatabaseError::query_failed(
@@ -362,8 +361,8 @@ impl SqlitePool {
             self.metrics.increment_errors();
             DatabaseError::query_failed(
                 DatabaseType::SQLite,
-                 QueryType::Select,
-                 format!("Failed to begin transaction: {}", e),
+                QueryType::Select,
+                format!("Failed to begin transaction: {}", e),
             )
         })
     }
@@ -371,9 +370,7 @@ impl SqlitePool {
     pub async fn health_check(&self) -> DatabaseResult<HealthStatus> {
         let start = Instant::now();
 
-        let result = sqlx::query("SELECT 1")
-            .fetch_one(&self.pool)
-            .await;
+        let result = sqlx::query("SELECT 1").fetch_one(&self.pool).await;
 
         let duration = start.elapsed();
 
@@ -388,11 +385,11 @@ impl SqlitePool {
             }),
             Err(e) => {
                 self.metrics.increment_errors();
-                Err(DatabaseError::HealthCheck { message: 
-                    format!("Health check failed: {}", e).into(), 
+                Err(DatabaseError::HealthCheck {
+                    message: format!("Health check failed: {}", e).into(),
                     database: DatabaseType::SQLite,
                     check_type: crate::errors::HealthCheckType::Query,
-                    context:ErrorContext::new("health_check")
+                    context: ErrorContext::new("health_check")
                         .with_severity(ErrorSeverity::Warning)
                         .with_component("sqlite_pool"),
                 })
@@ -426,13 +423,11 @@ pub struct HealthStatus {
     pub avg_query_time_ms: u64,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     async fn create_test_pool() -> SqlitePool {
-
         let config = SqlitePoolConfig::builder()
             .url("sqlite::memory:")
             .max_connections(5)
@@ -462,9 +457,10 @@ mod tests {
     async fn test_execute_query() {
         let pool = create_test_pool().await;
 
-        let result = pool.execute(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)"
-        ).await.unwrap();
+        let result = pool
+            .execute("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+            .await
+            .unwrap();
 
         assert_eq!(result.rows_affected(), 0);
     }
@@ -473,9 +469,9 @@ mod tests {
     async fn test_transaction() {
         let pool = create_test_pool().await;
 
-        pool.execute(
-            "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)"
-        ).await.unwrap();
+        pool.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+            .await
+            .unwrap();
 
         let mut tx = pool.begin_transaction().await.unwrap();
 
@@ -491,7 +487,9 @@ mod tests {
     async fn test_metrics_tracking() {
         let pool = create_test_pool().await;
 
-        pool.execute("CREATE TABLE test_metrics (id INTEGER PRIMARY KEY, data TEXT)").await.unwrap();
+        pool.execute("CREATE TABLE test_metrics (id INTEGER PRIMARY KEY, data TEXT)")
+            .await
+            .unwrap();
 
         let metrics = pool.metrics();
         assert!(metrics.query_count.load(Ordering::Relaxed) > 0);
