@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::time::SystemTime;
-use thiserror::Error;
 use std::borrow::Cow;
 use std::cell::OnceCell;
+use std::time::SystemTime;
+use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum DatabaseError {
@@ -139,7 +139,10 @@ pub type QueryResult<T> = Result<T, DatabaseError>;
 pub type MigrationResult<T> = Result<T, DatabaseError>;
 
 impl DatabaseError {
-    pub fn connection_failed(database: DatabaseType, message: impl Into<Cow<'static, str>>) -> Self {
+    pub fn connection_failed(
+        database: DatabaseType,
+        message: impl Into<Cow<'static, str>>,
+    ) -> Self {
         DatabaseError::Connection {
             message: message.into(),
             database,
@@ -183,7 +186,11 @@ impl DatabaseError {
         }
     }
 
-    pub fn with_context(mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) -> Self {
+    pub fn with_context(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) -> Self {
         match &mut self {
             DatabaseError::Connection { context, .. }
             | DatabaseError::Pool { context, .. }
@@ -235,7 +242,7 @@ impl ErrorContext {
         Self {
             timestamp_cell: OnceCell::new(),
             operation: operation.into(),
-            component: Cow::Borrowed("database"), 
+            component: Cow::Borrowed("database"),
             correlation_id: None,
             retry_count: 0,
             severity: ErrorSeverity::default(),
@@ -266,10 +273,13 @@ impl ErrorContext {
         *self.timestamp_cell.get_or_init(|| SystemTime::now())
     }
 
-    pub fn add_context(&mut self, key: impl Into<Cow<'static, str>>, value: impl Into<Cow<'static, str>>) {
+    pub fn add_context(
+        &mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) {
         self.additional_info.push((key.into(), value.into()));
     }
-
 }
 
 impl From<crate::config::ConfigError> for DatabaseError {
@@ -311,23 +321,25 @@ impl std::fmt::Display for DatabaseType {
 
 #[cfg(test)]
 mod tests {
-        use super::*;
+    use super::*;
 
-        #[test]
-        fn test_error_construction_helpers() {
-            let conn_err = DatabaseError::connection_failed(DatabaseType::SQLite, "Connection refused");
+    #[test]
+    fn test_error_construction_helpers() {
+        let conn_err = DatabaseError::connection_failed(DatabaseType::SQLite, "Connection refused");
 
-            match conn_err {
-                DatabaseError::Connection { message, database, ..} => {
-                    assert_eq!(message, "Connection refused");
-                    assert!(matches!(database, DatabaseType::SQLite))
+        match conn_err {
+            DatabaseError::Connection {
+                message, database, ..
+            } => {
+                assert_eq!(message, "Connection refused");
+                assert!(matches!(database, DatabaseType::SQLite))
             }
             _ => panic!("Expected Connection error"),
         }
 
         let pool_err = DatabaseError::pool_exhausted(DatabaseType::Redis, "Pool full");
         match pool_err {
-            DatabaseError::Pool { pool_state, ..} => {
+            DatabaseError::Pool { pool_state, .. } => {
                 assert!(matches!(pool_state, PoolState::Exhausted))
             }
             _ => panic!("Expected Pool error"),
@@ -354,9 +366,15 @@ mod tests {
             .with_context("port", "5432");
 
         match error {
-            DatabaseError::Connection { context, ..} => {
-                assert!(context.additional_info.iter().any(|(k, v)| k == "host" && v == "localhost"));
-                assert!(context.additional_info.iter().any(|(k, v)| k == "port" && v == "5432"));
+            DatabaseError::Connection { context, .. } => {
+                assert!(context
+                    .additional_info
+                    .iter()
+                    .any(|(k, v)| k == "host" && v == "localhost"));
+                assert!(context
+                    .additional_info
+                    .iter()
+                    .any(|(k, v)| k == "port" && v == "5432"));
             }
             _ => panic!("Expected Connection error"),
         }
@@ -368,7 +386,11 @@ mod tests {
         let db_err: DatabaseError = sqlx_err.into();
 
         match db_err {
-            DatabaseError::Pool { pool_state, database, ..} => {
+            DatabaseError::Pool {
+                pool_state,
+                database,
+                ..
+            } => {
                 assert!(matches!(pool_state, PoolState::Exhausted));
                 assert!(matches!(database, DatabaseType::SQLite));
             }
@@ -379,15 +401,21 @@ mod tests {
     #[test]
     fn test_error_serialization() {
         let error = DatabaseError::timeout(
-            DatabaseType::Redis, 
-            "Query_execution", std::time::Duration::from_secs(30)
+            DatabaseType::Redis,
+            "Query_execution",
+            std::time::Duration::from_secs(30),
         );
 
         let serialized = serde_json::to_string(&error).expect("Should serialize");
-        let deserialized: DatabaseError = serde_json::from_str(&serialized).expect("Should deserialize");
+        let deserialized: DatabaseError =
+            serde_json::from_str(&serialized).expect("Should deserialize");
 
         match deserialized {
-            DatabaseError::Timeout { operation, timeout_duration, .. } => {
+            DatabaseError::Timeout {
+                operation,
+                timeout_duration,
+                ..
+            } => {
                 assert_eq!(operation, "Query_execution");
                 assert_eq!(timeout_duration, std::time::Duration::from_secs(30));
             }
