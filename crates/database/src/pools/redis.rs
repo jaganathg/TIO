@@ -505,7 +505,7 @@ mod tests {
 
     async fn create_test_pool() -> RedisPool {
         let config = RedisPoolConfig::builder()
-            .url("redis://localhost:6379")
+            .url("redis://:redispassword@localhost:6379")
             .max_connections(5)
             .min_connections(1)
             .acquire_timeout(Duration::from_secs(1))
@@ -564,7 +564,7 @@ mod tests {
         let set_expire = pool.expire("expire_test", 1).await.unwrap();
         assert!(set_expire);
 
-        let exists_before = pool.exists("exists_test").await.unwrap();
+        let exists_before = pool.exists("expire_test").await.unwrap();
         assert!(exists_before);
 
         tokio::time::sleep(Duration::from_secs(2)).await;
