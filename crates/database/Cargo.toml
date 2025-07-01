@@ -32,4 +32,7 @@ sqlx = { version = "0.8.6", features = [
 redis = { version = "0.32.2", features = ["tokio-comp", "connection-manager"] }
 bb8 = "0.9.0"
 bb8-redis = "0.24.0"
-influxdb = "0.7.2"
+influxdb2 = "0.5.2"
+influxdb2-derive = "0.1.1"
+influxdb2-structmap = "0.2.0"
+num-traits = "0.2.19"
