@@ -1,6 +1,10 @@
 use crate::config::DatabaseConfig;
 use crate::errors::{DatabaseError, DatabaseResult, DatabaseType, ErrorContext};
-use influxdb2::{models::DataPoint, Client};
+use influxdb2::{
+    models::{DataPoint, Query},
+    Client,
+};
+use serde::Deserialize;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
@@ -199,6 +203,21 @@ pub enum FieldValue {
     Boolean(bool),
 }
 
+#[derive(Debug, Clone, Default, Deserialize, influxdb2::FromDataPoint)]
+pub struct QueryPoint {
+    pub _time: chrono::DateTime<chrono::FixedOffset>,
+    pub _measurement: String,
+    pub _field: String,
+    pub _value: f64,
+}
+
+#[derive(Debug)]
+pub struct QueryResult<T> {
+    pub points: Vec<T>,
+    pub execution_time_ms: u64,
+    pub series_count: usize,
+}
+
 pub struct InfluxDBPool {
     client: Client,
     config: InfluxDBPoolConfig,
@@ -339,23 +358,135 @@ impl InfluxDBPool {
         }
     }
 
-    pub async fn query<T>(&self, _query: &str) -> DatabaseResult<Vec<T>>
+    pub async fn query<T>(&self, flux_query: &str) -> DatabaseResult<QueryResult<T>>
     where
-        T: serde::de::DeserializeOwned,
+        T: serde::de::DeserializeOwned + influxdb2::FromMap,
     {
-        Err(DatabaseError::Configuration {
-            message: "Generic queries require custom structs implementing FromDataPoint trait (not yet implemented)".into(),
-            database: DatabaseType::InfluxDB,
-            context: ErrorContext::new("generic_query_not_implemented"),
-        })
+        let start = Instant::now();
+
+        let query = Query::new(flux_query.to_string());
+
+        let result = timeout(self.config.timeout, self.client.query::<T>(Some(query))).await;
+
+        let duration = start.elapsed();
+
+        match result {
+            Ok(Ok(points)) => {
+                let series_count = points.len();
+
+                self.metrics
+                    .record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
+
+                Ok(QueryResult {
+                    points,
+                    execution_time_ms: duration.as_millis() as u64,
+                    series_count,
+                })
+            }
+            Ok(Err(e)) => {
+                self.metrics.increment_errors();
+                Err(DatabaseError::query_failed(
+                    DatabaseType::InfluxDB,
+                    crate::errors::QueryType::Select,
+                    format!("Query execution failed: {}", e),
+                )
+                .with_context("duration_ms", duration.as_millis().to_string())
+                .with_context("query", flux_query.to_string()))
+            }
+            Err(_) => {
+                self.metrics.increment_errors();
+                Err(DatabaseError::timeout(
+                    DatabaseType::InfluxDB,
+                    "typed_query",
+                    self.config.timeout,
+                ))
+            }
+        }
     }
 
-    pub async fn query_raw(&self, _query: &str) -> DatabaseResult<String> {
-        Err(DatabaseError::Configuration {
-            message: "Raw queries require proper Flux implementation (not yet implemented)".into(),
-            database: DatabaseType::InfluxDB,
-            context: ErrorContext::new("raw_query_not_implemented"),
-        })
+    pub async fn query_raw(&self, flux_query: &str) -> DatabaseResult<String> {
+        let start = Instant::now();
+
+        let result = self.query::<QueryPoint>(flux_query).await;
+
+        let duration = start.elapsed();
+
+        match result {
+            Ok(query_result) => {
+                let mut csv_output = String::new();
+                csv_output.push_str("_time, _measurement, _field, _value\n");
+
+                for point in query_result.points {
+                    csv_output.push_str(&format!(
+                        "{}, {}, {}, {}\n",
+                        point._time.to_rfc3339(),
+                        point._measurement,
+                        point._field,
+                        point._value
+                    ));
+                }
+
+                self.metrics
+                    .record_query(std::cmp::max(1, duration.as_micros() as u64 / 1000));
+
+                Ok(csv_output)
+            }
+            Err(e) => Err(e.with_context("query_type", "raw_query".to_string())),
+        }
+    }
+
+    pub async fn query_recent(
+        &self,
+        measurement: &str,
+        field: &str,
+        duration: &str,
+    ) -> DatabaseResult<QueryResult<QueryPoint>> {
+        let flux_query = format!(
+            r#"from(bucket: "{}")
+            |> range(start: -{})
+            |> filter(fn: (r) => r._measurement == "{}" and r._field == "{}")
+            |> yield()"#,
+            self.config.bucket, duration, measurement, field
+        );
+
+        self.query::<QueryPoint>(&flux_query).await
+    }
+
+    pub async fn query_range(
+        &self,
+        measurement: &str,
+        start: chrono::DateTime<chrono::Utc>,
+        end: chrono::DateTime<chrono::Utc>,
+    ) -> DatabaseResult<QueryResult<QueryPoint>> {
+        let flux_query = format!(
+            r#"from(bucket: "{}")
+            |> range(start: {}, stop: {})
+            |> filter(fn: (r) => r._measurement == "{}")
+            |> yield()"#,
+            self.config.bucket,
+            start.to_rfc3339(),
+            end.to_rfc3339(),
+            measurement
+        );
+
+        self.query::<QueryPoint>(&flux_query).await
+    }
+
+    pub async fn query_latest(
+        &self,
+        measurement: &str,
+        field: &str,
+    ) -> DatabaseResult<Option<QueryPoint>> {
+        let flux_query = format!(
+            r#"from(bucket: "{}")
+            |> range(start: -24h)
+            |> filter(fn: (r) => r._measurement == "{}" and r._field == "{}")
+            |> last()
+            |> yield()"#,
+            self.config.bucket, measurement, field
+        );
+        let result = self.query::<QueryPoint>(&flux_query).await?;
+        Ok(result.points.into_iter().next())
     }
 
     pub async fn create_bucket(&self, _bucket: &str) -> DatabaseResult<()> {
@@ -396,13 +527,10 @@ impl InfluxDBPool {
             .await
             .is_ok();
 
-        let query_test = self.query_raw("bucket() > limit(n:1)").await.is_ok();
-
-        if write_test {
-            let _ = self
-                .query_raw("drop(measurement: \"__health_check__\")")
-                .await;
-        }
+        let query_test = self
+            .query_raw(r#"from(bucket: bucket()) |> range(start: -1m) |> limit(n:1)"#)
+            .await
+            .is_ok();
 
         let duration = start.elapsed();
         let is_healthy = bucket_exists && write_test && query_test;
@@ -514,5 +642,31 @@ mod tests {
         assert_eq!(metrics.query_count.load(Ordering::Relaxed), 1);
         assert_eq!(metrics.average_write_time_ms(), 100.0);
         assert_eq!(metrics.average_query_time_ms(), 50.0);
+    }
+
+    #[tokio::test]
+    async fn test_query_operations() {
+        let pool = create_test_pool().await;
+
+        let raw_result = pool
+            .query_raw(r#"from(bucket: "test_bucket") |> range(start: -1h) |> limit(n:1)"#)
+            .await;
+
+        println!("Raw query result: {:?}", raw_result);
+    }
+
+    #[tokio::test]
+    async fn test_query_helpers() {
+        let pool = create_test_pool().await;
+
+        let recent_result = pool
+            .query_recent("test_measurement", "temperature", "1h")
+            .await;
+
+        println!("Recent query result: {:?}", recent_result);
+
+        let latest_result = pool.query_latest("test_measurement", "temperature").await;
+
+        println!("Latest query result: {:?}", latest_result);
     }
 }
